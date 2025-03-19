@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MIN UTSIKT</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: "VT323", monospace;
+            font-size: 16px;
+            background-color: white;
+            margin: 0;
+            padding: 20px;
+            line-height: 1.4;
+            transition: background 0.5s ease;
+            position: relative;
+            min-height: 100vh;
+        }
+        body.sunset-early {
+            background: linear-gradient(to bottom, 
+                #FFFFF0,
+                #E6F3FF,
+                #87CEEB,
+                #87CEEB,
+                #FFB6C1,
+                #D8BFD8,
+                #000033,
+                #000000
+            );
+        }
+        body.sunset-late {
+            background: linear-gradient(to bottom, 
+                #283254,
+                #10131f,
+                #D8BFD8,
+                #FFB6C1,
+                #87CEEB,
+                #87CEEB,
+                #E6F3FF,
+                #FFFFF0
+            );
+        }
+        .album-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .album-title {
+            text-align: center;
+            font-size: 32px;
+            margin-bottom: 30px;
+            line-height: 1.2;
+            color: #000;
+        }
+        .album-title.late {
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0);
+        }
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 20px;
+            padding: 20px;
+        }
+        .photo-card {
+            display: block;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            border: 1px solid #000;
+        }
+        .photo-card:hover {
+            transform: translateY(-5px);
+        }
+        .photo-card.hidden {
+            display: none;
+        }
+        .photo-title {
+            padding: 10px 15px;
+            border-bottom: 1px solid #000;
+            font-weight: normal;
+            color: #000;
+            text-align: left;
+            font-size: 18px;
+            line-height: 1.2;
+        }
+        .photo-container {
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border-bottom: 1px solid #000;
+            overflow: hidden;
+        }
+        .photo-container.has-image::before {
+            display: none;
+        }
+        .photo-container:not(.has-image)::before {
+            content: "Photo Placeholder";
+            color: #000;
+            font-size: 16px;
+        }
+        .photo-info {
+            padding: 15px;
+        }
+        .photo-date-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .photo-date {
+            font-weight: normal;
+            color: #000;
+            font-size: 18px;
+        }
+        .photo-time {
+            color: #000;
+            font-size: 18px;
+        }
+        .photo-description {
+            color: #000;
+            font-size: 16px;
+            line-height: 1.3;
+        }
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .top-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .nav-buttons {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 0 20px;
+        }
+        .nav-buttons-row {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        .filter-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            padding: 0 20px;
+        }
+        .category-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: flex-start;
+        }
+        .category-button {
+            font-family: "VT323", monospace;
+            font-size: 18px;
+            padding: 8px 16px;
+            border: 1px solid #000;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .category-button:hover {
+            background: #000;
+            color: white;
+        }
+        .category-button.active {
+            background: #000;
+            color: white;
+        }
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: transparent;
+            cursor: pointer;
+        }
+        .modal-content {
+            max-width: 90%;
+            max-height: 90vh;
+            margin: auto;
+            display: block;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .modal img {
+            max-width: 100%;
+            max-height: 90vh;
+            object-fit: contain;
+        }
+        /* Statistics styles */
+        .stats-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            cursor: pointer;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .stats-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 1px solid #000;
+        }
+        .stats-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #000;
+        }
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .stats-title {
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+        }
+        .back-button {
+            font-family: "VT323", monospace;
+            font-size: 18px;
+            padding: 8px 16px;
+            border: 1px solid #000;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+        }
+        .back-button:hover {
+            background: #000;
+            color: white;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .stat-item {
+            padding: 10px;
+            border: 1px solid #000;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        .stat-label {
+            font-size: 18px;
+            color: #666;
+        }
+        .category-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .category-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 5px 10px;
+            border: 1px solid #000;
+            font-size: 18px;
+        }
+        .time-distribution {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .time-bar {
+            height: 30px;
+            background: #87CEEB;
+            border: 1px solid #000;
+            position: relative;
+        }
+        .time-bar-fill {
+            height: 100%;
+            background: #000;
+            transition: width 0.3s ease;
+        }
+        .time-label {
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .time-label-white {
+            color: white;
+        }
+        .time-label-black {
+            color: #000000;
+        }
+        /* About page styles */
+        .about-modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            cursor: pointer;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        .about-content {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border: 1px solid #000;
+        }
+        .about-section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #000;
+        }
+        .about-section p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .button-label {
+            font-size: 20px;
+            text-align: left;
+            margin-bottom: 5px;
+            color: #000;
+        }
+        /* Add these new styles */
+        .loading-indicator {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            font-size: 20px;
+        }
+        .loading-indicator.active {
+            display: block;
+        }
+        
+        .search-container {
+            margin-top: 20px;
+            margin-bottom: 5px;
+            padding: 0 20px;
+        }
+        .search-box {
+            width: calc(100% - 20px);
+            padding: 10px;
+            font-size: 18px;
+            border: 1px solid #000;
+            font-family: "VT323", monospace;
+            margin: 0 20px 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="album-container">
+        <h1 class="album-title">MIN UTSIKT</h1>
+        <div class="top-buttons">
+            <div class="nav-buttons">
+                <div class="button-label">Navigation</div>
+                <div class="nav-buttons-row">
+                    <button class="category-button" onclick="showAbout()">Om</button>
+                    <button class="category-button" onclick="showStats()">Statistik</button>
+                    <button class="category-button" onclick="showRandomPhoto()">Slumpmässig bild</button>
+                </div>
+            </div>
+            <div class="filter-buttons">
+                <div class="button-label">Filter och sortering</div>
+                <div class="category-row" id="categoryFilter"></div>
+            </div>
+        </div>
+        <div class="search-container">
+            <input type="text" class="search-box" placeholder="Sök efter datum, beskrivning eller kategori..." oninput="handleSearch(this.value)">
+        </div>
+        <div class="loading-indicator">Laddar bilder...</div>
+        <div id="output" class="photo-grid"></div>
+    </div>
+
+    <!-- Modal for enlarged images -->
+    <div id="imageModal" class="modal">
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <!-- Statistics Modal -->
+    <div id="statsModal" class="stats-modal">
+        <div class="stats-content">
+            <div class="stats-header">
+                <button class="back-button" onclick="closeStats()">Tillbaka</button>
+                <h2 class="stats-title">Statistik</h2>
+            </div>
+            <div class="stats-section">
+                <h3>Översikt</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalPhotos">0</div>
+                        <div class="stat-label">Totalt antal foton</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="totalCategories">0</div>
+                        <div class="stat-label">Antal kategorier</div>
+                    </div>
+                </div>
+            </div>
+            <div class="stats-section">
+                <h3>Kategorier</h3>
+                <div class="category-stats" id="categoryStats"></div>
+            </div>
+            <div class="stats-section">
+                <h3>Tidsfördelning</h3>
+                <div class="time-distribution" id="timeDistribution"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- About Modal -->
+    <div id="aboutModal" class="about-modal">
+        <div class="about-content">
+            <div class="stats-header">
+                <button class="back-button" onclick="closeAbout()">Tillbaka</button>
+                <h2 class="stats-title">Om</h2>
+            </div>
+            <div class="about-section">
+                <p>17 mars 2017 bestämde jag mig för att sätta ett alarm på min telefon som ringde kl 18:00 varje dag. Jag skulle då ställa upp min telefon i hörnet av mitt fönster och fota en bild på min utsikt från mitt rum. Detta höll på ända fram till 13 juni 2018.</p>
+                <p style="margin-bottom: 40px;">Jag lyckades fota 223* bilder under 453 dagar. Jag har minnen om hur dessa alarm ringde mitt i mina danslektioner och när jag var bortrest. Jag tog inte detta på ett så stort allvar, jag missade ibland hela veckor och jag tog ibland bilden 30 minuter sent.</p>
+                <p>*Jag fotade fler bilder men på grund av att dessa bilder ligger på en gammal extern hårddisk så lyckades jag inte föra över alla, därför saknas det massor i mitten av samlingen.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allData = []; // Store all data globally
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const csvUrl = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRuVrw5Zy7eo1XPOrP6_1oNCQ6CujoppwKfp98SXyMXwZVPM3QOBs1Oc8iqOQhpZjoKdDl4sGIhSWR1/pub?output=csv";
+
+            Papa.parse(csvUrl, {
+                download: true,
+                header: false,
+                complete: function(results) {
+                    allData = results.data;
+                    setupCategories(results.data);
+                    renderAlbum(results.data);
+                }
+            });
+        });
+
+        function setupCategories(data) {
+            const categoryFilter = document.getElementById("categoryFilter");
+            const categories = new Set();
+            
+            // Collect unique categories from column D
+            data.forEach(row => {
+                if (row[3]) { // Column D is index 3
+                    categories.add(row[3]);
+                }
+            });
+
+            // Create "All" button
+            const allButton = document.createElement("button");
+            allButton.className = "category-button active";
+            allButton.textContent = "Alla";
+            allButton.onclick = () => filterPhotos("all");
+            categoryFilter.appendChild(allButton);
+
+            // Convert Set to Array and sort alphabetically
+            const sortedCategories = Array.from(categories).sort();
+
+            // Create category buttons in alphabetical order
+            sortedCategories.forEach(category => {
+                const button = document.createElement("button");
+                button.className = "category-button";
+                button.textContent = category;
+                button.onclick = () => filterPhotos(category);
+                categoryFilter.appendChild(button);
+            });
+
+            // Create time sorting buttons
+            const timeButton = document.createElement("button");
+            timeButton.className = "category-button";
+            timeButton.textContent = "Tidigast först";
+            timeButton.onclick = () => sortByTime(false);
+            categoryFilter.appendChild(timeButton);
+
+            const reverseTimeButton = document.createElement("button");
+            reverseTimeButton.className = "category-button";
+            reverseTimeButton.textContent = "Senast först";
+            reverseTimeButton.onclick = () => sortByTime(true);
+            categoryFilter.appendChild(reverseTimeButton);
+        }
+
+        function sortByTime(reverse = false) {
+            // Update active button
+            document.querySelectorAll(".category-button").forEach(button => {
+                button.classList.remove("active");
+                if (button.textContent === "Tidigast först" && !reverse) {
+                    button.classList.add("active");
+                } else if (button.textContent === "Senast först" && reverse) {
+                    button.classList.add("active");
+                }
+            });
+
+            // Update background gradient and title color
+            document.body.classList.remove('sunset-early', 'sunset-late');
+            const title = document.querySelector('.album-title');
+            title.classList.remove('late');
+            
+            if (!reverse) {
+                document.body.classList.add('sunset-early');
+            } else {
+                document.body.classList.add('sunset-late');
+                title.classList.add('late');
+            }
+
+            // Create a copy of the data to sort
+            const sortedData = [...allData].sort((a, b) => {
+                const timeA = a[2] || "00:00"; // Column C is index 2
+                const timeB = b[2] || "00:00";
+                
+                // Convert time strings to comparable values
+                const [hoursA, minutesA] = timeA.split(":").map(Number);
+                const [hoursB, minutesB] = timeB.split(":").map(Number);
+                
+                // Compare hours first, then minutes
+                if (hoursA !== hoursB) {
+                    return reverse ? hoursB - hoursA : hoursA - hoursB;
+                }
+                return reverse ? minutesB - minutesA : minutesA - minutesB;
+            });
+
+            renderAlbum(sortedData);
+        }
+
+        function filterPhotos(category) {
+            // Update active button
+            document.querySelectorAll(".category-button").forEach(button => {
+                button.classList.remove("active");
+                if (button.textContent === category || (category === "all" && button.textContent === "Alla")) {
+                    button.classList.add("active");
+                }
+            });
+
+            // Remove sunset gradient and title color classes
+            document.body.classList.remove('sunset-early', 'sunset-late');
+            const title = document.querySelector('.album-title');
+            title.classList.remove('late');
+
+            // Filter and render photos
+            const filteredData = category === "all" 
+                ? allData 
+                : allData.filter(row => row[3] === category);
+            renderAlbum(filteredData);
+        }
+
+        function renderAlbum(data) {
+            const output = document.getElementById("output");
+            const loadingIndicator = document.querySelector(".loading-indicator");
+            output.innerHTML = ""; // Clear previous content
+            loadingIndicator.classList.add("active");
+
+            // Create a promise array for all image loads
+            const imagePromises = [];
+
+            data.forEach((row, rowIndex) => {
+                const photoCard = document.createElement("div");
+                photoCard.className = "photo-card";
+
+                // Add title from column E
+                const titleDiv = document.createElement("div");
+                titleDiv.className = "photo-title";
+                titleDiv.textContent = row[4] || ""; // Column E is index 4
+                photoCard.appendChild(titleDiv);
+
+                const photoContainer = document.createElement("div");
+                photoContainer.className = "photo-container";
+
+                // Check for images in the description text
+                const descriptionText = [...row.slice(0, 1), ...row.slice(3, 4)].join(" "); // Get description text
+                console.log("Description text:", descriptionText); // Debug log
+                
+                const parts = descriptionText.split(" ").map(part => part.trim());
+                parts.forEach(part => {
+                    console.log("Checking part:", part); // Debug log
+                    if (part.startsWith("http")) {
+                        // Handle Google Drive sharing links
+                        if (part.includes("drive.google.com")) {
+                            // Extract the file ID from the sharing URL
+                            const fileId = part.match(/[-\w]{25,}/);
+                            if (fileId) {
+                                const directUrl = `https://drive.google.com/thumbnail?id=${fileId[0]}&sz=w1000`;
+                                const img = document.createElement("img");
+                                
+                                // Create a promise for this image load
+                                const imagePromise = new Promise((resolve, reject) => {
+                                    img.onload = () => {
+                                        photoContainer.innerHTML = "";
+                                        photoContainer.classList.add("has-image");
+                                        photoContainer.appendChild(img);
+                                        resolve();
+                                    };
+                                    img.onerror = () => {
+                                        console.log("Failed to load image:", directUrl);
+                                        reject();
+                                    };
+                                    img.src = directUrl;
+                                });
+                                imagePromises.push(imagePromise);
+
+                                // Add click handler for modal
+                                img.onclick = () => {
+                                    const modal = document.getElementById("imageModal");
+                                    const modalImg = document.getElementById("modalImage");
+                                    modal.style.display = "block";
+                                    modalImg.src = directUrl;
+                                };
+                                console.log("Added Google Drive image:", directUrl); // Debug log
+                            }
+                        }
+                    }
+                });
+
+                // Close modal when clicking outside the image
+                const modal = document.getElementById("imageModal");
+                modal.onclick = function() {
+                    modal.style.display = "none";
+                };
+
+                const photoInfo = document.createElement("div");
+                photoInfo.className = "photo-info";
+
+                // Create a row for date and time
+                const dateRow = document.createElement("div");
+                dateRow.className = "photo-date-row";
+
+                // Add date (using column B)
+                const dateDiv = document.createElement("div");
+                dateDiv.className = "photo-date";
+                dateDiv.textContent = row[1] || "No date";
+                dateRow.appendChild(dateDiv);
+
+                // Add time (using column C)
+                const timeDiv = document.createElement("div");
+                timeDiv.className = "photo-time";
+                timeDiv.textContent = row[2] || "";
+                dateRow.appendChild(timeDiv);
+
+                photoInfo.appendChild(dateRow);
+
+                // Add description (using other columns except B, C, and E as description)
+                const descriptionDiv = document.createElement("div");
+                descriptionDiv.className = "photo-description";
+                // Remove the Google Drive URL from the description text
+                const descriptionParts = [...row.slice(0, 1), ...row.slice(3, 4)]
+                    .join(" ")
+                    .split(" ")
+                    .filter(part => !part.includes("drive.google.com"))
+                    .join(" ");
+                descriptionDiv.textContent = descriptionParts;
+                photoInfo.appendChild(descriptionDiv);
+
+                photoCard.appendChild(photoContainer);
+                photoCard.appendChild(photoInfo);
+                output.appendChild(photoCard);
+            });
+
+            // Wait for all images to load before hiding the loading indicator
+            Promise.all(imagePromises)
+                .then(() => {
+                    loadingIndicator.classList.remove("active");
+                })
+                .catch(error => {
+                    console.error("Error loading images:", error);
+                    loadingIndicator.classList.remove("active");
+                });
+        }
+
+        // Statistics functions
+        function calculateStats() {
+            const stats = {
+                totalPhotos: allData.length,
+                categories: {},
+                timeDistribution: {
+                    morning: 0,    // 6-12
+                    afternoon: 0,  // 12-18
+                    evening: 0,    // 18-24
+                    night: 0       // 0-6
+                },
+                monthlyDistribution: {
+                    "Januari": 0,
+                    "Februari": 0,
+                    "Mars": 0,
+                    "April": 0,
+                    "Maj": 0,
+                    "Juni": 0,
+                    "Juli": 0,
+                    "Augusti": 0,
+                    "September": 0,
+                    "Oktober": 0,
+                    "November": 0,
+                    "December": 0
+                },
+                seasonalDistribution: {
+                    "Vår": 0,
+                    "Sommar": 0,
+                    "Höst": 0,
+                    "Vinter": 0
+                }
+            };
+
+            // Count photos per category and time distribution
+            allData.forEach(row => {
+                const category = row[3] || "Okategoriserad";
+                stats.categories[category] = (stats.categories[category] || 0) + 1;
+
+                // Count photos by time of day
+                const time = row[2] || "00:00";
+                const [hours] = time.split(":").map(Number);
+                if (hours >= 6 && hours < 12) stats.timeDistribution.morning++;
+                else if (hours >= 12 && hours < 18) stats.timeDistribution.afternoon++;
+                else if (hours >= 18) stats.timeDistribution.evening++;
+                else stats.timeDistribution.night++;
+
+                // Count photos by month and season
+                const date = row[1] || "2024-01-01"; // Default date if none provided
+                const [year, month] = date.split("-").map(Number);
+                // Convert month number to Swedish month name
+                const monthNames = [
+                    "Januari", "Februari", "Mars", "April", "Maj", "Juni",
+                    "Juli", "Augusti", "September", "Oktober", "November", "December"
+                ];
+                const monthName = monthNames[month - 1];
+                stats.monthlyDistribution[monthName]++;
+
+                // Determine season based on month
+                if (month >= 3 && month <= 5) stats.seasonalDistribution["Vår"]++;
+                else if (month >= 6 && month <= 8) stats.seasonalDistribution["Sommar"]++;
+                else if (month >= 9 && month <= 11) stats.seasonalDistribution["Höst"]++;
+                else stats.seasonalDistribution["Vinter"]++;
+            });
+
+            return stats;
+        }
+
+        function showStats() {
+            const stats = calculateStats();
+            const modal = document.getElementById("statsModal");
+            modal.style.display = "block";
+
+            // Update overview stats
+            document.getElementById("totalPhotos").textContent = stats.totalPhotos;
+            document.getElementById("totalCategories").textContent = Object.keys(stats.categories).length;
+
+            // Update category stats
+            const categoryStats = document.getElementById("categoryStats");
+            categoryStats.innerHTML = "";
+            Object.entries(stats.categories)
+                .sort((a, b) => b[1] - a[1])
+                .forEach(([category, count]) => {
+                    const percentage = ((count / stats.totalPhotos) * 100).toFixed(1);
+                    const div = document.createElement("div");
+                    div.className = "category-stat";
+                    const photoText = count === 1 ? "foto" : "foton";
+                    div.innerHTML = `
+                        <span>${category}</span>
+                        <span>${count} ${photoText} (${percentage}%)</span>
+                    `;
+                    categoryStats.appendChild(div);
+                });
+
+            // Update time distribution
+            const timeDistribution = document.getElementById("timeDistribution");
+            timeDistribution.innerHTML = "";
+            const timeLabels = {
+                morning: "Morgon (06:00-12:00)",
+                afternoon: "Eftermiddag (12:00-18:00)",
+                evening: "Kväll (18:00-24:00)",
+                night: "Natt (00:00-06:00)"
+            };
+            Object.entries(stats.timeDistribution).forEach(([period, count]) => {
+                const percentage = ((count / stats.totalPhotos) * 100).toFixed(1);
+                const div = document.createElement("div");
+                div.className = "time-bar";
+                div.innerHTML = `
+                    <div class="time-bar-fill" style="width: ${percentage}%"></div>
+                    <div class="time-label">${timeLabels[period]}: ${count} foton (${percentage}%)</div>
+                `;
+                timeDistribution.appendChild(div);
+            });
+
+            // Remove existing monthly and seasonal sections if they exist
+            const statsContent = document.querySelector(".stats-content");
+            const sections = statsContent.querySelectorAll(".stats-section");
+            sections.forEach(section => {
+                const heading = section.querySelector("h3");
+                if (heading && (heading.textContent === "Månadsfördelning" || heading.textContent === "Säsongsfördelning")) {
+                    section.remove();
+                }
+            });
+
+            // Add monthly distribution section
+            const monthlySection = document.createElement("div");
+            monthlySection.className = "stats-section";
+            monthlySection.innerHTML = `
+                <h3>Månadsfördelning</h3>
+                <div class="time-distribution" id="monthlyDistribution"></div>
+            `;
+            statsContent.appendChild(monthlySection);
+
+            const monthlyDistribution = document.getElementById("monthlyDistribution");
+            Object.entries(stats.monthlyDistribution).forEach(([month, count]) => {
+                const percentage = ((count / stats.totalPhotos) * 100).toFixed(1);
+                const div = document.createElement("div");
+                div.className = "time-bar";
+                div.innerHTML = `
+                    <div class="time-bar-fill" style="width: ${percentage}%"></div>
+                    <div class="time-label">${month}: ${count} foton (${percentage}%)</div>
+                `;
+                monthlyDistribution.appendChild(div);
+            });
+
+            // Add seasonal distribution section
+            const seasonalSection = document.createElement("div");
+            seasonalSection.className = "stats-section";
+            seasonalSection.innerHTML = `
+                <h3>Säsongsfördelning</h3>
+                <div class="time-distribution" id="seasonalDistribution"></div>
+            `;
+            statsContent.appendChild(seasonalSection);
+
+            const seasonalDistribution = document.getElementById("seasonalDistribution");
+            Object.entries(stats.seasonalDistribution).forEach(([season, count]) => {
+                const percentage = ((count / stats.totalPhotos) * 100).toFixed(1);
+                const div = document.createElement("div");
+                div.className = "time-bar";
+                div.innerHTML = `
+                    <div class="time-bar-fill" style="width: ${percentage}%"></div>
+                    <div class="time-label">${season}: ${count} foton (${percentage}%)</div>
+                `;
+                seasonalDistribution.appendChild(div);
+            });
+        }
+
+        // Close stats modal when clicking outside
+        document.getElementById("statsModal").onclick = function(event) {
+            if (event.target === this) {
+                closeStats();
+            }
+        };
+
+        function closeStats() {
+            document.getElementById("statsModal").style.display = "none";
+        }
+
+        function showAbout() {
+            document.getElementById("aboutModal").style.display = "block";
+        }
+
+        function closeAbout() {
+            document.getElementById("aboutModal").style.display = "none";
+        }
+
+        // Close about modal when clicking outside
+        document.getElementById("aboutModal").onclick = function(event) {
+            if (event.target === this) {
+                closeAbout();
+            }
+        };
+
+        function showRandomPhoto() {
+            // Get all photos that have images
+            const photoCards = document.querySelectorAll('.photo-container.has-image img');
+            if (photoCards.length === 0) return;
+
+            // Get a random photo
+            const randomIndex = Math.floor(Math.random() * photoCards.length);
+            const randomPhoto = photoCards[randomIndex];
+
+            // Show the photo in the modal
+            const modal = document.getElementById("imageModal");
+            const modalImg = document.getElementById("modalImage");
+            modal.style.display = "block";
+            modalImg.src = randomPhoto.src;
+        }
+
+        function handleSearch(query) {
+            const searchQuery = query.toLowerCase();
+            const filteredData = allData.filter(row => {
+                const date = (row[1] || "").toLowerCase();
+                const description = (row[0] || "").toLowerCase();
+                const category = (row[3] || "").toLowerCase();
+                return date.includes(searchQuery) || 
+                       description.includes(searchQuery) || 
+                       category.includes(searchQuery);
+            });
+            renderAlbum(filteredData);
+        }
+    </script>
+</body>
+</html>
